@@ -259,9 +259,9 @@ final class L10n: ObservableObject {
 
         // CLI
         "cli": "CLI",
-        "cli_desc": "Install the notchagent-cli command-line tool to control NotchAgent from your terminal.",
+        "cli_desc": "Install the notchagent command-line tool to control NotchAgent from your terminal.",
         "cli_install_button": "Install NotchAgent CLI",
-        "cli_install_success": "NotchAgent CLI installed to ~/.notchagent/notchagent-cli",
+        "cli_install_success": "NotchAgent CLI installed to ~/.notchagent/notchagent",
         "cli_install_failed": "Installation failed",
         "cli_install_missing_binary": "CLI binary not found in app bundle",
         "cli_copy_path": "Copy Path",

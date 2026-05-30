@@ -9,9 +9,12 @@ import Foundation
 import Darwin
 import NotchAgentCore
 
+private let executableName = URL(fileURLWithPath: CommandLine.arguments.first ?? "notchagent")
+    .lastPathComponent
+
 private func printUsage() {
     print("""
-    Usage: notchagent-cli <command>
+    Usage: \(executableName.isEmpty ? "notchagent" : executableName) <command>
 
     Commands:
       status      Show current surface, active sessions, and pending items
@@ -30,8 +33,8 @@ private func printUsage() {
 
 private func printCompletion(shell: String) {
     let bashScript = """
-    # Bash completion for notchagent-cli
-    _notchagent_cli() {
+    # Bash completion for notchagent
+    _notchagent() {
         local cur prev opts
         COMPREPLY=()
         cur="${COMP_WORDS[COMP_CWORD]}"
@@ -40,12 +43,12 @@ private func printCompletion(shell: String) {
         COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
         return 0
     }
-    complete -F _notchagent_cli notchagent-cli
+    complete -F _notchagent notchagent notchagent-cli
     """
 
     let zshScript = """
-    #compdef notchagent-cli
-    _notchagent-cli() {
+    #compdef notchagent notchagent-cli
+    _notchagent() {
         local -a commands
         commands=(
             'status:Show current surface and active sessions'
@@ -57,9 +60,9 @@ private func printCompletion(shell: String) {
             'completion:Print shell completion script'
             'help:Show help'
         )
-        _describe -t commands 'notchagent-cli commands' commands
+        _describe -t commands 'notchagent commands' commands
     }
-    compdef _notchagent-cli notchagent-cli
+    compdef _notchagent notchagent notchagent-cli
     """
 
     let lower = shell.lowercased()

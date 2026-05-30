@@ -2624,6 +2624,37 @@ private struct ShortcutRow: View {
 
 // MARK: - CLI Page
 
+private enum CLIInstallPaths {
+    static let primaryCLIName = "notchagent"
+    static let legacyCLIName = "notchagent-cli"
+
+    static var installDir: String {
+        "\(NSHomeDirectory())/.notchagent"
+    }
+
+    static var primaryInstallPath: String {
+        "\(installDir)/\(primaryCLIName)"
+    }
+
+    static var legacyInstallPath: String {
+        "\(installDir)/\(legacyCLIName)"
+    }
+
+    static func bundledExecutablePath(fileManager fm: FileManager = .default) -> String? {
+        var candidates: [String] = []
+        if let path = Bundle.main.path(forAuxiliaryExecutable: legacyCLIName) {
+            candidates.append(path)
+        }
+
+        candidates.append(Bundle.main.bundlePath + "/Contents/Helpers/\(legacyCLIName)")
+        if let executablePath = Bundle.main.executablePath {
+            candidates.append((executablePath as NSString).deletingLastPathComponent + "/\(legacyCLIName)")
+        }
+
+        return candidates.first { fm.isExecutableFile(atPath: $0) }
+    }
+}
+
 private struct CLIPage: View {
     @ObservedObject private var l10n = L10n.shared
     @State private var installStatus = ""
@@ -2709,17 +2740,17 @@ private struct CLIPage: View {
 
             Section(l10n["cli_usage_title"]) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("notchagent-cli status")
+                    Text("notchagent status")
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .padding(8)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
-                    Text("notchagent-cli toggle")
+                    Text("notchagent toggle")
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .padding(8)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
-                    Text("notchagent-cli approve")
+                    Text("notchagent approve")
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(.secondary)
                         .padding(8)
@@ -2732,27 +2763,36 @@ private struct CLIPage: View {
 
     private func installCLI() {
         let fm = FileManager.default
-        let home = NSHomeDirectory()
-        let sourceBin = Bundle.main.path(forAuxiliaryExecutable: "notchagent-cli")
-            ?? "\(home)/.notchagent/notchagent-cli"
-        let targetDir = "\(home)/.notchagent"
-        let targetBin = "\(targetDir)/notchagent-cli"
+        let targetDir = CLIInstallPaths.installDir
+        let targetBin = CLIInstallPaths.primaryInstallPath
+        let legacyTargetBin = CLIInstallPaths.legacyInstallPath
 
         do {
             try? fm.createDirectory(atPath: targetDir, withIntermediateDirectories: true)
-            if fm.fileExists(atPath: targetBin) {
-                try fm.removeItem(atPath: targetBin)
-            }
-            if fm.fileExists(atPath: sourceBin) {
-                try fm.copyItem(atPath: sourceBin, toPath: targetBin)
-            } else if fm.fileExists(atPath: targetBin) {
-                // Already there from a previous install
-            } else {
+
+            let sourceBin = CLIInstallPaths.bundledExecutablePath(fileManager: fm)
+                ?? (!fm.fileExists(atPath: targetBin) && fm.fileExists(atPath: legacyTargetBin) ? legacyTargetBin : nil)
+
+            guard let sourceBin else {
+                if fm.fileExists(atPath: targetBin) {
+                    try ensureLegacyCLIAlias(fileManager: fm)
+                    installStatus = l10n["cli_install_success"]
+                    isInstalled = true
+                    return
+                }
                 installStatus = l10n["cli_install_missing_binary"]
                 isInstalled = false
                 return
             }
+
+            if fm.fileExists(atPath: targetBin), sourceBin != targetBin {
+                try fm.removeItem(atPath: targetBin)
+            }
+            if sourceBin != targetBin {
+                try fm.copyItem(atPath: sourceBin, toPath: targetBin)
+            }
             try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: targetBin)
+            try ensureLegacyCLIAlias(fileManager: fm)
             installStatus = l10n["cli_install_success"]
             isInstalled = true
         } catch {
@@ -2761,17 +2801,30 @@ private struct CLIPage: View {
         }
     }
 
+    private func ensureLegacyCLIAlias(fileManager fm: FileManager) throws {
+        let targetBin = CLIInstallPaths.primaryInstallPath
+        let legacyTargetBin = CLIInstallPaths.legacyInstallPath
+        if fm.fileExists(atPath: legacyTargetBin) {
+            try fm.removeItem(atPath: legacyTargetBin)
+        }
+        do {
+            try fm.createSymbolicLink(atPath: legacyTargetBin, withDestinationPath: targetBin)
+        } catch {
+            try fm.copyItem(atPath: targetBin, toPath: legacyTargetBin)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: legacyTargetBin)
+        }
+    }
+
     private func copyCLIPath() {
-        let path = "\(NSHomeDirectory())/.notchagent/notchagent-cli"
+        let path = CLIInstallPaths.primaryInstallPath
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(path, forType: .string)
     }
 
     private func addToPath() {
         let home = NSHomeDirectory()
-        let binDir = "\(home)/.notchagent"
         let fm = FileManager.default
-        guard fm.fileExists(atPath: "\(binDir)/notchagent-cli") else {
+        guard fm.fileExists(atPath: CLIInstallPaths.primaryInstallPath) else {
             installStatus = l10n["cli_add_path_not_installed"]
             isInstalled = false
             return
@@ -2814,9 +2867,8 @@ private struct CLIPage: View {
 
     private func installCompletions() {
         let home = NSHomeDirectory()
-        let binDir = "\(home)/.notchagent"
         let fm = FileManager.default
-        guard fm.fileExists(atPath: "\(binDir)/notchagent-cli") else {
+        guard fm.fileExists(atPath: CLIInstallPaths.primaryInstallPath) else {
             installStatus = l10n["cli_completions_not_installed"]
             isInstalled = false
             return
@@ -2824,10 +2876,10 @@ private struct CLIPage: View {
 
         // Bash completions
         let bashDir = "\(home)/.bash_completion.d"
-        let bashPath = "\(bashDir)/notchagent-cli"
+        let bashPath = "\(bashDir)/notchagent"
         let bashScript = """
         #!/bin/bash
-        _notchagent_cli() {
+        _notchagent() {
             local cur prev opts
             COMPREPLY=()
             cur="${COMP_WORDS[COMP_CWORD]}"
@@ -2836,7 +2888,7 @@ private struct CLIPage: View {
             COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
             return 0
         }
-        complete -F _notchagent_cli notchagent-cli
+        complete -F _notchagent notchagent notchagent-cli
         """
         do {
             try? fm.createDirectory(atPath: bashDir, withIntermediateDirectories: true)
@@ -2849,11 +2901,11 @@ private struct CLIPage: View {
 
         // Zsh completions
         let zshDir = "\(home)/.zsh/completions"
-        let zshPath = "\(zshDir)/_notchagent-cli"
+        let zshPath = "\(zshDir)/_notchagent"
         let zshScript = """
-        #compdef notchagent-cli
+        #compdef notchagent notchagent-cli
 
-        _notchagent-cli() {
+        _notchagent() {
             local -a commands
             commands=(
                 'status:Show current surface and active sessions'
@@ -2865,10 +2917,10 @@ private struct CLIPage: View {
                 'completion:Print shell completion script'
                 'help:Show help'
             )
-            _describe -t commands 'notchagent-cli commands' commands
+            _describe -t commands 'notchagent commands' commands
         }
 
-        compdef _notchagent-cli notchagent-cli
+        compdef _notchagent notchagent notchagent-cli
         """
         do {
             try? fm.createDirectory(atPath: zshDir, withIntermediateDirectories: true)

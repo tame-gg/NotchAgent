@@ -25,6 +25,10 @@ require_pattern "scripts/build-dmg.sh" "notchagent-cli"
 require_pattern "build.sh" "notchagent-cli"
 require_pattern "Sources/NotchAgentCLI/main.swift" "sunPathCapacity"
 require_pattern "Sources/NotchAgentCore/CostEstimator.swift" "1_000_000.0"
+require_pattern "Sources/NotchAgent/SettingsView.swift" "primaryCLIName = \"notchagent\""
+require_pattern "Sources/NotchAgent/SettingsView.swift" "legacyCLIName = \"notchagent-cli\""
+require_pattern "Sources/NotchAgent/SettingsView.swift" "Contents/Helpers"
+require_pattern "Sources/NotchAgent/SettingsView.swift" "notchagent status"
 
 old_app='Code''Island'
 old_app_lower='code''island'
