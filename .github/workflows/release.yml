@@ -121,14 +121,22 @@ jobs:
       - name: Verify DMG contents
         shell: bash
         run: |
-          APP_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/MacOS/NotchAgent)"
-          HELPER_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-bridge)"
-          CLI_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-cli)"
-          SPARKLE_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Frameworks/Sparkle.framework/Sparkle)"
-          test "$APP_ARCHS" = "arm64 x86_64"
-          test "$HELPER_ARCHS" = "arm64 x86_64"
-          test "$CLI_ARCHS" = "arm64 x86_64"
-          test "$SPARKLE_ARCHS" = "arm64 x86_64"
+          require_archs() {
+            local path="$1"
+            shift
+            local archs
+            archs="$(lipo -archs "$path")"
+            echo "$path: $archs"
+            for arch in "$@"; do
+              [[ " $archs " == *" $arch "* ]]
+            done
+            test "$(wc -w <<< "$archs" | tr -d ' ')" -eq "$#"
+          }
+
+          require_archs .build/dmg-staging/NotchAgent.app/Contents/MacOS/NotchAgent arm64 x86_64
+          require_archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-bridge arm64 x86_64
+          require_archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-cli arm64 x86_64
+          require_archs .build/dmg-staging/NotchAgent.app/Contents/Frameworks/Sparkle.framework/Sparkle arm64 x86_64
           ls -lh .build/NotchAgent.dmg
 
       - name: Generate GitHub Releases appcast
