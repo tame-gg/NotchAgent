@@ -144,11 +144,15 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
+          mkdir -p .build
           if [[ -z "${SPARKLE_PRIVATE_KEY:-}" ]]; then
-            echo "SPARKLE_PRIVATE_KEY is required to generate a Sparkle appcast for GitHub Releases." >&2
-            exit 1
+            echo "::notice::SPARKLE_PRIVATE_KEY is missing; skipping Sparkle appcast generation."
+            echo "APPCAST_READY=0" >> "$GITHUB_ENV"
+            exit 0
           fi
           ./scripts/update-appcast.sh "$VERSION" .build/NotchAgent.dmg
+          cp appcast.xml .build/appcast.xml
+          echo "APPCAST_READY=1" >> "$GITHUB_ENV"
 
       - name: Extract release notes
         shell: bash
@@ -165,10 +169,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          assets=(.build/NotchAgent.dmg)
+          if [[ "${APPCAST_READY:-0}" == "1" ]]; then
+            assets+=(.build/appcast.xml)
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" .build/NotchAgent.dmg appcast.xml --clobber
+            gh release upload "$TAG" "${assets[@]}" --clobber
           else
-            gh release create "$TAG" .build/NotchAgent.dmg appcast.xml \
+            gh release create "$TAG" "${assets[@]}" \
               --title "NotchAgent $TAG" \
               --notes-file .build/release-notes.md
           fi
@@ -179,5 +188,5 @@ jobs:
           name: NotchAgent-${{ env.VERSION }}-release-assets
           path: |
             .build/NotchAgent.dmg
-            appcast.xml
+            .build/appcast.xml
           if-no-files-found: error
