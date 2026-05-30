@@ -93,6 +93,9 @@ build_mac() {
         fi
     done
 
+    echo "Clearing extended attributes before signing..."
+    xattr -cr "$APP_BUNDLE"
+
     ENTITLEMENTS="NotchAgent.entitlements"
 
     # Use SIGN_ID env var, or auto-detect: prefer "Developer ID Application" for distribution,
@@ -129,6 +132,7 @@ build_mac() {
         codesign --force --options runtime --sign "$SIGN_ID" "$helper"
     done
     codesign --force --options runtime --sign "$SIGN_ID" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
+    codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
     if [ "$NOTARIZE" = true ] && [[ "$SIGN_ID" == *"Developer ID"* ]]; then
         echo "Creating ZIP for notarization..."

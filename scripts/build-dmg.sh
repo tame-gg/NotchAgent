@@ -135,6 +135,9 @@ install_name_tool -add_rpath "@executable_path/../Frameworks" \
     "$CONTENTS_DIR/MacOS/$APP_NAME"
 echo "==> Added @executable_path/../Frameworks rpath to $APP_NAME binary"
 
+echo "==> Clearing extended attributes before signing"
+xattr -cr "$APP_DIR"
+
 echo "==> App bundle assembled at $APP_DIR"
 
 # ---------------------------------------------------------------------------
@@ -168,6 +171,8 @@ adhoc_sign_app_for_local_permissions() {
         --entitlements "$REPO_ROOT/NotchAgent.entitlements" \
         --sign - \
         "$APP_DIR"
+
+    codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 }
 
 if [ "${SKIP_SIGN:-0}" = "1" ]; then
