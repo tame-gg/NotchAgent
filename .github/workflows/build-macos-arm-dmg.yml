@@ -1,6 +1,11 @@
 name: Build macOS ARM DMG
 
 on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -81,6 +86,6 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NotchAgent-macos-arm64-dmg
+          name: NotchAgent-${{ env.VERSION }}-${{ github.sha }}-macos-arm64-dmg
           path: .build/NotchAgent.dmg
           if-no-files-found: error

@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.0.28] - 2026-05-30
+
+### English
+- Make the GitHub Actions ARM DMG workflow run on pushes and tags, with commit-specific artifact names so stale downloads are easier to spot.
+- Bump the app version so builds with the NotchAgent CLI alias fix are visibly distinct from earlier `v1.0.27` artifacts.
+
+### 中文
+- GitHub Actions ARM DMG 工作流现在会在 push 和 tag 时运行，并使用带 commit 的 artifact 名称，方便识别旧下载。
+- 提升应用版本号，让包含 NotchAgent CLI 别名修复的构建与早期 `v1.0.27` artifact 明确区分。
+
 ## [v1.0.27] - 2026-05-30
 
 ### English
