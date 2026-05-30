@@ -67,11 +67,8 @@ jobs:
           swift --version
           uname -m
 
-      - name: Install DMG tooling
-        run: |
-          if ! command -v create-dmg >/dev/null 2>&1; then
-            brew install create-dmg
-          fi
+      - name: Verify DMG tooling
+        run: command -v hdiutil
 
       - name: Import Developer ID signing assets
         shell: bash

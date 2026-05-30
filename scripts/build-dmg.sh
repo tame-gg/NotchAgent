@@ -228,18 +228,24 @@ echo "==> Creating DMG"
 # Remove previous DMG if exists
 rm -f "$OUTPUT_DMG"
 
-create-dmg \
-    --volname "$APP_NAME ${VERSION}" \
-    --window-pos 200 120 \
-    --window-size 600 400 \
-    --icon-size 100 \
-    --icon "$APP_NAME.app" 175 190 \
-    --hide-extension "$APP_NAME.app" \
-    --app-drop-link 425 190 \
-    --no-internet-enable \
-    --sandbox-safe \
-    "$OUTPUT_DMG" \
-    "$STAGING_DIR/"
+hdiutil create \
+    -volname "$APP_NAME ${VERSION}" \
+    -srcfolder "$STAGING_DIR" \
+    -ov \
+    -format UDZO \
+    "$OUTPUT_DMG"
+
+verify_app_in_dmg() {
+    local mount_dir
+    mount_dir="$(mktemp -d)"
+    hdiutil attach "$OUTPUT_DMG" -nobrowse -readonly -mountpoint "$mount_dir" >/dev/null
+    codesign --verify --deep --strict --verbose=2 "$mount_dir/$APP_NAME.app"
+    hdiutil detach "$mount_dir" >/dev/null
+    rmdir "$mount_dir"
+}
+
+echo "==> Verifying app bundle inside DMG"
+verify_app_in_dmg
 
 # Codesign the DMG container itself. Without this `spctl --assess` reports
 # "no usable signature" on the dmg even when the inner .app is properly
