@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage: ./scripts/update-appcast.sh <version> <dmg-path>
-# Example: ./scripts/update-appcast.sh 1.0.22 .build/CodeIsland.dmg
+# Example: ./scripts/update-appcast.sh 1.0.22 .build/NotchAgent.dmg
 #
 # Produces / updates appcast.xml at the repo root. Signs the DMG with the
 # private EdDSA key that lives in the macOS Keychain (added by Sparkle's
@@ -13,7 +13,7 @@ set -euo pipefail
 #   - A prior `swift build -c release` has populated .build/artifacts so
 #     Sparkle's sign_update binary is on disk.
 #   - The DMG is uploaded to
-#       https://github.com/wxtsky/CodeIsland/releases/download/v<version>/CodeIsland.dmg
+#       https://github.com/tame-gg/NotchAgent/releases/download/v<version>/NotchAgent.dmg
 #     (the default asset URL from build-dmg.sh + `gh release create`).
 
 VERSION="${1:-}"
@@ -40,13 +40,19 @@ fi
 # ---------------------------------------------------------------------------
 # Collect fields for the <enclosure> tag
 # ---------------------------------------------------------------------------
-DOWNLOAD_URL="https://github.com/wxtsky/CodeIsland/releases/download/v${VERSION}/CodeIsland.dmg"
+DOWNLOAD_URL="https://github.com/tame-gg/NotchAgent/releases/download/v${VERSION}/NotchAgent.dmg"
+FEED_URL="https://github.com/tame-gg/NotchAgent/releases/latest/download/appcast.xml"
 PUB_DATE="$(LC_TIME=en_US.UTF-8 date -u "+%a, %d %b %Y %H:%M:%S +0000")"
 LENGTH="$(stat -f%z "$DMG_PATH")"
 MIN_OS="14.0"
 
-echo "==> Signing $DMG_PATH with Sparkle EdDSA key from Keychain"
-SIGN_OUTPUT="$("$SIGN_UPDATE" "$DMG_PATH")"
+if [[ -n "${SPARKLE_PRIVATE_KEY:-}" ]]; then
+    echo "==> Signing $DMG_PATH with Sparkle EdDSA key from SPARKLE_PRIVATE_KEY"
+    SIGN_OUTPUT="$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE" --ed-key-file - "$DMG_PATH")"
+else
+    echo "==> Signing $DMG_PATH with Sparkle EdDSA key from Keychain"
+    SIGN_OUTPUT="$("$SIGN_UPDATE" "$DMG_PATH")"
+fi
 # sign_update emits `sparkle:edSignature="..." length="..."` on success.
 ED_SIG="$(printf '%s' "$SIGN_OUTPUT" | /usr/bin/perl -ne 'print $1 if /sparkle:edSignature="([^"]+)"/')"
 if [[ -z "$ED_SIG" ]]; then
@@ -60,7 +66,7 @@ fi
 # ---------------------------------------------------------------------------
 NEW_ITEM="    <item>
       <title>Version ${VERSION}</title>
-      <link>https://github.com/wxtsky/CodeIsland/releases/tag/v${VERSION}</link>
+      <link>https://github.com/tame-gg/NotchAgent/releases/tag/v${VERSION}</link>
       <sparkle:version>${VERSION}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
@@ -83,9 +89,9 @@ if [[ ! -f "$APPCAST" ]]; then
      xmlns:dc="http://purl.org/dc/elements/1.1/"
      version="2.0">
   <channel>
-    <title>CodeIsland</title>
-    <link>https://raw.githubusercontent.com/wxtsky/CodeIsland/main/appcast.xml</link>
-    <description>Most recent CodeIsland updates</description>
+    <title>NotchAgent</title>
+    <link>${FEED_URL}</link>
+    <description>Most recent NotchAgent updates</description>
     <language>en</language>
 ${NEW_ITEM}
   </channel>

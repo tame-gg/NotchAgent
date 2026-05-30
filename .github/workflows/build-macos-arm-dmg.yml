@@ -44,6 +44,7 @@ jobs:
             exit 1
           fi
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          echo "DEVELOPER_DIR=$XCODE_APP/Contents/Developer" >> "$GITHUB_ENV"
 
       - name: Show build environment
         run: |
@@ -62,17 +63,19 @@ jobs:
 
       - name: Verify ARM64 app binary
         run: |
-          APP_ARCHS="$(lipo -archs .build/dmg-staging/CodeIsland.app/Contents/MacOS/CodeIsland)"
-          HELPER_ARCHS="$(lipo -archs .build/dmg-staging/CodeIsland.app/Contents/Helpers/codeisland-bridge)"
-          SPARKLE_ARCHS="$(lipo -archs .build/dmg-staging/CodeIsland.app/Contents/Frameworks/Sparkle.framework/Sparkle)"
+          APP_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/MacOS/NotchAgent)"
+          HELPER_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-bridge)"
+          CLI_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Helpers/notchagent-cli)"
+          SPARKLE_ARCHS="$(lipo -archs .build/dmg-staging/NotchAgent.app/Contents/Frameworks/Sparkle.framework/Sparkle)"
           test "$APP_ARCHS" = "arm64"
           test "$HELPER_ARCHS" = "arm64"
+          test "$CLI_ARCHS" = "arm64"
           test "$SPARKLE_ARCHS" = "arm64"
-          ls -lh .build/CodeIsland.dmg
+          ls -lh .build/NotchAgent.dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CodeIsland-macos-arm64-dmg
-          path: .build/CodeIsland.dmg
+          name: NotchAgent-macos-arm64-dmg
+          path: .build/NotchAgent.dmg
           if-no-files-found: error

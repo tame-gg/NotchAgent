@@ -1,31 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-# Ensure Xcode.app toolchain is used even if xcode-select points at CLT
-if [ -d /Applications/Xcode.app/Contents/Developer ]; then
+# Ensure Xcode.app toolchain is used even if xcode-select points at CLT,
+# while still allowing CI to pin a specific Xcode with DEVELOPER_DIR.
+if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
     export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
 
-APP_NAME="CodeIsland"
+APP_NAME="NotchAgent"
+TARGET_NAME="NotchAgent"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 ICON_CATALOG="Assets.xcassets"
 ICON_SOURCE="AppIcon.icon"
 ICON_INFO_PLIST=".build/AppIcon.partial.plist"
-WATCH_DIR="android-watch"
-WATCH_GRADLEW="$WATCH_DIR/gradlew"
-WATCH_APK_DEBUG="$WATCH_DIR/app/build/outputs/apk/debug/app-debug.apk"
 
 BUILD_MAC=true
-BUILD_WATCH=false
 NOTARIZE=false
 
 usage() {
     cat <<'EOF'
-Usage: ./build.sh [--watch] [--with-watch] [--notarize]
+Usage: ./build.sh [--notarize]
 
-  --watch       Build Android watch app only
-  --with-watch  Build macOS app and Android watch app
   --notarize    Notarize macOS app bundle / DMG after signing
   --help        Show this help
 EOF
@@ -33,13 +29,6 @@ EOF
 
 for arg in "$@"; do
     case "$arg" in
-        --watch)
-            BUILD_MAC=false
-            BUILD_WATCH=true
-            ;;
-        --with-watch)
-            BUILD_WATCH=true
-            ;;
         --notarize)
             NOTARIZE=true
             ;;
@@ -54,19 +43,6 @@ for arg in "$@"; do
             ;;
     esac
 done
-
-build_watch() {
-    echo "Building Android watch app..."
-    if [ ! -x "$WATCH_GRADLEW" ]; then
-        echo "Missing executable Gradle wrapper: $WATCH_GRADLEW" >&2
-        exit 1
-    fi
-
-    "$WATCH_GRADLEW" -p "$WATCH_DIR" testDebugUnitTest
-    "$WATCH_GRADLEW" -p "$WATCH_DIR" assembleDebug
-
-    echo "Watch APK ready: $WATCH_APK_DEBUG"
-}
 
 build_mac() {
     echo "Building $APP_NAME (universal)..."
@@ -84,10 +60,12 @@ build_mac() {
     mkdir -p "$APP_BUNDLE/Contents/Resources"
     mkdir -p "$APP_BUNDLE/Contents/Frameworks"
 
-    lipo -create "$ARM_DIR/$APP_NAME" "$X86_DIR/$APP_NAME" \
+    lipo -create "$ARM_DIR/$TARGET_NAME" "$X86_DIR/$TARGET_NAME" \
          -output "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-    lipo -create "$ARM_DIR/codeisland-bridge" "$X86_DIR/codeisland-bridge" \
-         -output "$APP_BUNDLE/Contents/Helpers/codeisland-bridge"
+    lipo -create "$ARM_DIR/notchagent-bridge" "$X86_DIR/notchagent-bridge" \
+         -output "$APP_BUNDLE/Contents/Helpers/notchagent-bridge"
+    lipo -create "$ARM_DIR/notchagent-cli" "$X86_DIR/notchagent-cli" \
+         -output "$APP_BUNDLE/Contents/Helpers/notchagent-cli"
     cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
     echo "Embedding frameworks..."
@@ -103,7 +81,7 @@ build_mac() {
     install_name_tool -add_rpath "@executable_path/../Frameworks" \
         "$APP_BUNDLE/Contents/MacOS/$APP_NAME" 2>/dev/null || true
     install_name_tool -add_rpath "@executable_path/../../Frameworks" \
-        "$APP_BUNDLE/Contents/Helpers/codeisland-bridge" 2>/dev/null || true
+        "$APP_BUNDLE/Contents/Helpers/notchagent-bridge" 2>/dev/null || true
 
     echo "Compiling app icon assets..."
     xcrun actool \
@@ -119,7 +97,7 @@ build_mac() {
         --compile "$APP_BUNDLE/Contents/Resources" \
         "$ICON_CATALOG" \
         "$ICON_SOURCE"
-    cp "Sources/CodeIsland/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+    cp "Sources/NotchAgent/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
     # Copy SPM resource bundles into Contents/Resources/ (required for code signing)
     for bundle in .build/*/release/*.bundle; do
@@ -129,7 +107,7 @@ build_mac() {
         fi
     done
 
-    ENTITLEMENTS="CodeIsland.entitlements"
+    ENTITLEMENTS="NotchAgent.entitlements"
 
     # Use SIGN_ID env var, or auto-detect: prefer "Developer ID Application" for distribution,
     # fall back to any valid identity, then ad-hoc
@@ -160,7 +138,10 @@ build_mac() {
     fi
     codesign --force --options runtime --sign "$SIGN_ID" "$SPARKLE_FW"
 
-    codesign --force --options runtime --sign "$SIGN_ID" "$APP_BUNDLE/Contents/Helpers/codeisland-bridge"
+    for helper in "$APP_BUNDLE/Contents/Helpers/"*; do
+        [ -f "$helper" ] || continue
+        codesign --force --options runtime --sign "$SIGN_ID" "$helper"
+    done
     codesign --force --options runtime --sign "$SIGN_ID" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
 
     if [ "$NOTARIZE" = true ] && [[ "$SIGN_ID" == *"Developer ID"* ]]; then
@@ -169,11 +150,11 @@ build_mac() {
         ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
 
         echo "Submitting for notarization..."
-        if xcrun notarytool submit "$ZIP_PATH" --keychain-profile "CodeIsland" --wait 2>&1 | tee /dev/stderr | grep -q "status: Accepted"; then
+        if xcrun notarytool submit "$ZIP_PATH" --keychain-profile "NotchAgent" --wait 2>&1 | tee /dev/stderr | grep -q "status: Accepted"; then
             echo "Stapling notarization ticket..."
             xcrun stapler staple "$APP_BUNDLE"
         else
-            echo "ERROR: Notarization failed. Run 'xcrun notarytool log <submission-id> --keychain-profile CodeIsland' for details."
+            echo "ERROR: Notarization failed. Run 'xcrun notarytool log <submission-id> --keychain-profile NotchAgent' for details."
             rm -f "$ZIP_PATH"
             exit 1
         fi
@@ -194,7 +175,7 @@ build_mac() {
 
         codesign --force --sign "$SIGN_ID" "$DMG_PATH"
         echo "Notarizing DMG..."
-        if xcrun notarytool submit "$DMG_PATH" --keychain-profile "CodeIsland" --wait 2>&1 | tee /dev/stderr | grep -q "status: Accepted"; then
+        if xcrun notarytool submit "$DMG_PATH" --keychain-profile "NotchAgent" --wait 2>&1 | tee /dev/stderr | grep -q "status: Accepted"; then
             xcrun stapler staple "$DMG_PATH"
             echo "DMG ready: $DMG_PATH"
         else
@@ -208,8 +189,4 @@ build_mac() {
 
 if [ "$BUILD_MAC" = true ]; then
     build_mac
-fi
-
-if [ "$BUILD_WATCH" = true ]; then
-    build_watch
 fi

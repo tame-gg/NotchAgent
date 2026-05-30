@@ -3,24 +3,28 @@
 ## [v1.0.27] - 2026-05-30
 
 ### English
-- Fix Cursor / Trae / Qoder / Factory click-to-jump raising the most-recently-used window instead of the one running the clicked session — now matches the workspace window by project folder (#199)
-- Install custom CLI hooks on SSH remote hosts too (claude / nested hook formats) — previously only the built-in CLIs were configured remotely (#192)
+- Rebrand the app as NotchAgent, a tame.gg project
+- Remove the Remote SSH feature and Buddy / ESP32 companion feature surfaces, runtime wiring, and companion artifacts
+- Fix the idle/default mascot path so the configured default mascot is used instead of always falling back to the Claude Code icon
+- Add NotchAgent control-center pages for session timeline, expanded approval previews, approval rules, approval pause, and session metrics
 
 ### 中文
-- 修复 Cursor / Trae / Qoder / Factory 点击灵动岛跳到"最近用过的窗口"而不是正在对话的那个——现在按项目目录匹配对应 workspace 窗口 (#199)
-- SSH 远程主机也会安装自定义 CLI 的 hooks（claude / nested 格式）——此前远程只配置内置 CLI (#192)
+- 将应用重命名为 NotchAgent，一个 tame.gg 项目
+- 移除 Remote SSH 功能和 Buddy / ESP32 伴侣功能入口、运行时接线以及伴侣端文件
+- 修复空闲 / 默认吉祥物路径：现在使用用户配置的默认吉祥物，不再总是回退到 Claude Code 图标
+- 新增 NotchAgent 控制中心页面：会话时间线、展开的审批预览、审批规则、审批暂停和会话指标
 
 ## [v1.0.26] - 2026-05-30
 
 ### English
 - Add pi / Oh My Pi (OMP) coding agent integration — auto-install the bundled extension into `~/.pi/agent/extensions` and `~/.omp/agent/extensions` (#197)
-- Isolate the remote SSH socket per user (`/tmp/codeisland-<uid>.sock`) so multiple OS users on a shared host no longer collide or steal each other's events (#193)
+- Isolate the remote SSH socket per user (`/tmp/notchagent-<uid>.sock`) so multiple OS users on a shared host no longer collide or steal each other's events (#193)
 - Fix the SSH tunnel being misreported as `ssh exited (0)` when ControlMaster multiplexing makes `ssh -N` hand off the forward and exit immediately — force a dedicated connection (#190)
 - Fix iTerm2 click-to-jump landing on the wrong window when the target session is fullscreen or on another Space — select the owning window so macOS switches to its Space (#198)
 
 ### 中文
 - 新增 pi / Oh My Pi (OMP) 编码 agent 集成——自动把扩展装到 `~/.pi/agent/extensions` 和 `~/.omp/agent/extensions` (#197)
-- 远程 SSH socket 改为按用户隔离（`/tmp/codeisland-<uid>.sock`），多用户共享主机不再互相串话或抢占事件 (#193)
+- 远程 SSH socket 改为按用户隔离（`/tmp/notchagent-<uid>.sock`），多用户共享主机不再互相串话或抢占事件 (#193)
 - 修复 SSH 隧道在 ControlMaster 多路复用下 `ssh -N` 立即退出、被误报为 `ssh exited (0)` 的问题——强制独占连接 (#190)
 - 修复 iTerm2 全屏 / 跨 Space 时点击会话跳到错误窗口——命中后选中目标窗口以触发 Space 切换 (#198)
 
@@ -31,13 +35,13 @@
 - Make auto-approve tools configurable in Settings; default no longer auto-approves `ExitPlanMode` so plan-mode exit prompts an approval dialog (#126)
 - Fix TraeCli YAML hook injection corruption on mixed indentation; preserve user comments via surgical merge (#122)
 - Respect `$CODEX_HOME` in codex auto-config (local + ssh) (#129)
-- Add WorkBuddy bundle ID for one-click jump from CodeIsland (#130)
+- Add WorkBuddy bundle ID for one-click jump from NotchAgent (#130)
 - Fix remote SSH sessions being force-flipped to idle on local timeout (#121)
 - Fix Ghostty click-to-jump no-op via System Events Accessibility fallback (#84)
 - Fix Terminal.app: minimized window not raising + multi-tab clicks all jumping to same tab (root cause: AppleScript `tty` variable shadowed Terminal.app's tab `tty` property) (#124)
 - Add configurable cwd-substring blocklist for hook events — filter out background plugins like claude-mem (#125)
 - Add webhook forwarding for hook events to external HTTP endpoints — pipe agent activity into DingTalk / Lark / Slack receivers (#115)
-- Add minimum Kiro CLI support — install hooks into `~/.kiro/agents/codeisland.json` (launch with `kiro --agent codeisland`) (#127)
+- Add minimum Kiro CLI support — install hooks into `~/.kiro/agents/notchagent.json` (launch with `kiro --agent notchagent`) (#127)
 
 ### 中文
 - 新增 ESP32 BLE 桌面伴侣设备——把吉祥物动画移植到实体小屏 (#131)
@@ -50,7 +54,7 @@
 - 修复 Terminal.app 最小化无法打开 + 多终端点哪个都跳同一 tab（真 root cause：AppleScript 局部变量 `tty` 跟 tab property `tty` 同名导致 Strategy 1 静默失效）(#124)
 - 设置里新增"忽略指定路径的 Hook"——按子串过滤 claude-mem 等后台插件触发的事件 (#125)
 - 设置里新增"Webhook 转发"——hook 事件以 JSON POST 到外部端点，方便对接钉钉/飞书/Slack (#115)
-- 新增 Kiro CLI 最小可用支持——hooks 写到 `~/.kiro/agents/codeisland.json`，启动用 `kiro --agent codeisland` (#127)
+- 新增 Kiro CLI 最小可用支持——hooks 写到 `~/.kiro/agents/notchagent.json`，启动用 `kiro --agent notchagent` (#127)
 
 ## [v1.0.15] - 2026-04-07
 
@@ -87,7 +91,7 @@
 ## [v1.0.7] - 2026-04-07
 
 ### English
-- Add Homebrew Cask distribution support (`brew install --cask codeisland`)
+- Add Homebrew Cask distribution support (`brew install --cask notchagent`)
 - Add in-app auto-update: download, install and relaunch without leaving the app
 - Add "Check for Updates" button in Settings → About
 - Detect Homebrew installs and suggest `brew upgrade` instead of auto-update
@@ -98,7 +102,7 @@
 - Hide project name in tool status area when no tool is running
 
 ### 中文
-- 新增 Homebrew Cask 分发支持（`brew install --cask codeisland`）
+- 新增 Homebrew Cask 分发支持（`brew install --cask notchagent`）
 - 新增 App 内自动更新：下载、安装并重启，无需离开应用
 - 设置 → 关于页面新增"检查更新"按钮
 - 检测 Homebrew 安装并建议使用 `brew upgrade` 更新

@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodeIsland",
+    name: "NotchAgent",
     platforms: [.macOS(.v14)],
     dependencies: [
         // Sparkle — auto-update framework. Pinned to 2.6+ for stable
@@ -12,38 +12,43 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "CodeIslandCore",
-            path: "Sources/CodeIslandCore"
+            name: "NotchAgentCore",
+            path: "Sources/NotchAgentCore"
         ),
         .executableTarget(
-            name: "CodeIsland",
+            name: "NotchAgent",
             dependencies: [
-                "CodeIslandCore",
+                "NotchAgentCore",
                 .product(name: "Sparkle", package: "Sparkle"),
                 .product(name: "Yams", package: "Yams"),
             ],
-            path: "Sources/CodeIsland",
+            path: "Sources/NotchAgent",
             resources: [
                 .copy("Resources")
             ]
         ),
         .executableTarget(
-            name: "codeisland-bridge",
-            dependencies: ["CodeIslandCore"],
-            path: "Sources/CodeIslandBridge"
+            name: "notchagent-bridge",
+            dependencies: ["NotchAgentCore"],
+            path: "Sources/NotchAgentBridge"
+        ),
+        .executableTarget(
+            name: "notchagent-cli",
+            dependencies: ["NotchAgentCore"],
+            path: "Sources/NotchAgentCLI"
         ),
         .testTarget(
-            name: "CodeIslandCoreTests",
-            dependencies: ["CodeIslandCore"],
-            path: "Tests/CodeIslandCoreTests"
+            name: "NotchAgentCoreTests",
+            dependencies: ["NotchAgentCore"],
+            path: "Tests/NotchAgentCoreTests"
         ),
         .testTarget(
-            name: "CodeIslandTests",
+            name: "NotchAgentTests",
             dependencies: [
-                "CodeIsland",
+                "NotchAgent",
                 .product(name: "Yams", package: "Yams"),
             ],
-            path: "Tests/CodeIslandTests"
+            path: "Tests/NotchAgentTests"
         ),
     ]
 )

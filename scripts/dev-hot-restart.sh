@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Hot-restart dev loop for CodeIsland:
+# Hot-restart dev loop for NotchAgent:
 # - Watches source changes
 # - Builds once per change batch
 # - Restarts app only after successful build
@@ -11,11 +11,11 @@ set -euo pipefail
 #   scripts/dev-hot-restart.sh --debounce 1.0 --paths "Sources,Tests,Package.swift"
 #   scripts/dev-hot-restart.sh --build-cmd "swift build"
 #   scripts/dev-hot-restart.sh --with-tests
-#   scripts/dev-hot-restart.sh --socket-path /tmp/codeisland-dev.sock
+#   scripts/dev-hot-restart.sh --socket-path /tmp/notchagent-dev.sock
 
 DEBOUNCE="0.8"
 WATCH_PATHS="Sources,Tests,Package.swift"
-APP_PATH=".build/debug/CodeIsland"
+APP_PATH=".build/debug/NotchAgent"
 BUILD_CMD="swift build"
 WITH_TESTS=0
 SOCKET_PATH=""
@@ -24,22 +24,22 @@ print_usage() {
   cat <<'EOF'
 Usage: scripts/dev-hot-restart.sh [options]
 
-Watch source changes, build once per change batch, and restart CodeIsland app only when build succeeds.
+Watch source changes, build once per change batch, and restart NotchAgent app only when build succeeds.
 If build fails, current app keeps running.
 
 Examples:
   scripts/dev-hot-restart.sh --debounce 1.0 --paths "Sources,Tests,Package.swift"
   scripts/dev-hot-restart.sh --build-cmd "swift build"
   scripts/dev-hot-restart.sh --with-tests
-  scripts/dev-hot-restart.sh --socket-path /tmp/codeisland-dev.sock
+  scripts/dev-hot-restart.sh --socket-path /tmp/notchagent-dev.sock
 
 Options:
   --paths <csv>          Watch paths (default: Sources,Tests,Package.swift)
   --debounce <seconds>   Debounce window (default: 0.8)
-  --app-path <path>      Executable path (default: .build/debug/CodeIsland)
+  --app-path <path>      Executable path (default: .build/debug/NotchAgent)
   --build-cmd <command>  Build command (default: swift build)
   --with-tests           Run swift test after successful build before restart
-  --socket-path <path>   Set CODEISLAND_SOCKET_PATH when launching app
+  --socket-path <path>   Set NOTCHAGENT_SOCKET_PATH when launching app
   --help                 Show this help message
 EOF
 }
@@ -105,10 +105,10 @@ parse_args() {
 
 quit_app() {
   local existing_pids
-  existing_pids="$(pgrep -x "CodeIsland" || true)"
+  existing_pids="$(pgrep -x "NotchAgent" || true)"
   [[ -z "$existing_pids" ]] && return 0
 
-  log "Stopping existing CodeIsland process(es): $existing_pids"
+  log "Stopping existing NotchAgent process(es): $existing_pids"
   local pid
   for pid in $existing_pids; do
     kill -TERM "$pid" >/dev/null 2>&1 || true
@@ -146,16 +146,16 @@ quit_app() {
     sleep 0.1
   done
 
-  fail "Existing CodeIsland process(es) still alive after SIGKILL; aborting restart"
+  fail "Existing NotchAgent process(es) still alive after SIGKILL; aborting restart"
 }
 
 launch_app() {
   if [[ "$APP_PATH" != *.app/Contents/MacOS/* ]]; then
-    log "NOTE: launching a bare executable; Buddy Bluetooth requires a signed .app bundle with Bluetooth entitlements"
+    log "NOTE: launching a bare executable; packaged app behavior can differ from this dev loop"
   fi
   if [[ -n "$SOCKET_PATH" ]]; then
-    log "Launching app with CODEISLAND_SOCKET_PATH=$SOCKET_PATH"
-    CODEISLAND_SOCKET_PATH="$SOCKET_PATH" "$APP_PATH" &
+    log "Launching app with NOTCHAGENT_SOCKET_PATH=$SOCKET_PATH"
+    NOTCHAGENT_SOCKET_PATH="$SOCKET_PATH" "$APP_PATH" &
   else
     log "Launching app: $APP_PATH"
     "$APP_PATH" &
@@ -237,7 +237,7 @@ main() {
 
   collect_watch_args
 
-  EVENT_FILE="$(mktemp -t codeisland-hot-restart-events)"
+  EVENT_FILE="$(mktemp -t notchagent-hot-restart-events)"
   trap cleanup EXIT INT TERM
 
   log "Watching paths: ${WATCH_ARGS[*]}"
