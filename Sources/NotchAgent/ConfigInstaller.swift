@@ -6,10 +6,15 @@ import Yams
 
 private enum HookId {
     static let current = "notchagent"
-    static let legacyNames = ["vibenotch", "vibe-island", "vibeisland"]
+    private static let legacyCodeName = "code" + "island"
+    static let legacyNames = [legacyCodeName, "code-" + "island", "vibenotch", "vibe-island", "vibeisland"]
     static func isOurs(_ s: String) -> Bool {
         let lower = s.lowercased()
         return lower.contains(current) || legacyNames.contains(where: lower.contains)
+    }
+    static func isLegacy(_ s: String) -> Bool {
+        let lower = s.lowercased()
+        return legacyNames.contains(where: lower.contains)
     }
 }
 
@@ -131,6 +136,9 @@ struct ConfigInstaller {
     // Legacy paths for migration cleanup (#32)
     private static let legacyBridgePath = NSHomeDirectory() + "/.claude/hooks/notchagent-bridge"
     private static let legacyHookScriptPath = NSHomeDirectory() + "/.claude/hooks/notchagent-hook.sh"
+    private static let legacyCodeName = "code" + "island"
+    private static let legacyPrebrandBridgePath = NSHomeDirectory() + "/.\(legacyCodeName)/\(legacyCodeName)-bridge"
+    private static let legacyPrebrandHookScriptPath = NSHomeDirectory() + "/.\(legacyCodeName)/\(legacyCodeName)-hook.sh"
 
     // MARK: - Codex home resolution
 
@@ -605,6 +613,9 @@ struct ConfigInstaller {
         // Clean up legacy paths at ~/.claude/hooks/ (#32)
         try? fm.removeItem(atPath: legacyBridgePath)
         try? fm.removeItem(atPath: legacyHookScriptPath)
+        // Clean up pre-rebrand helper binaries so stale hooks cannot keep firing.
+        try? fm.removeItem(atPath: legacyPrebrandBridgePath)
+        try? fm.removeItem(atPath: legacyPrebrandHookScriptPath)
 
         // Install hook script + bridge binary (shared by all CLIs)
         installHookScript(fm: fm)
@@ -656,6 +667,8 @@ struct ConfigInstaller {
         // Also clean up legacy paths (#32)
         try? fm.removeItem(atPath: legacyBridgePath)
         try? fm.removeItem(atPath: legacyHookScriptPath)
+        try? fm.removeItem(atPath: legacyPrebrandBridgePath)
+        try? fm.removeItem(atPath: legacyPrebrandHookScriptPath)
 
         for cli in allCLIs {
             if cli.source == "traecli" {
@@ -1005,7 +1018,7 @@ struct ConfigInstaller {
                 return hookList.contains { ($0["command"] as? String) == hookCommand }
             }
         }
-        if alreadyInstalled && !hasStaleAsyncKey(hooks) { return true }
+        if alreadyInstalled && !hasStaleAsyncKey(hooks) && !hasLegacyManagedHook(hooks) { return true }
 
         // Remove all managed hooks first, including legacy Vibe Island entries.
         hooks = removeManagedHookEntries(from: hooks)
@@ -2051,6 +2064,23 @@ struct ConfigInstaller {
         return false
     }
 
+    /// Detect managed pre-rebrand hook entries that should be rewritten even if
+    /// the current NotchAgent entries are already present.
+    private static func hasLegacyManagedHook(_ hooks: [String: Any]) -> Bool {
+        for (_, value) in hooks {
+            guard let entries = value as? [[String: Any]] else { continue }
+            for entry in entries {
+                if let hookList = entry["hooks"] as? [[String: Any]],
+                   hookList.contains(where: { HookId.isLegacy($0["command"] as? String ?? "") }) {
+                    return true
+                }
+                if let cmd = entry["command"] as? String, HookId.isLegacy(cmd) { return true }
+                if let cmd = entry["bash"] as? String, HookId.isLegacy(cmd) { return true }
+            }
+        }
+        return false
+    }
+
     /// Check if a hook entry contains our hook command
     private static func containsOurHook(_ entry: [String: Any]) -> Bool {
         // Claude/nested format: entry.hooks[].command
@@ -2254,7 +2284,7 @@ struct ConfigInstaller {
         }
 
         var plugins = parsed["plugin"] as? [String] ?? []
-        plugins.removeAll { $0.contains("vibe-island") || $0.contains(identifier) }
+        plugins.removeAll { HookId.isOurs($0) || $0.contains(identifier) }
         plugins.append(pluginRef)
 
         // Replace the plugin array in-place, preserving surrounding text exactly.
@@ -2286,10 +2316,10 @@ struct ConfigInstaller {
             return nil
         }
         guard var plugins = parsed["plugin"] as? [String],
-              plugins.contains(where: { $0.contains(identifier) }) else {
+              plugins.contains(where: { HookId.isOurs($0) || $0.contains(identifier) }) else {
             return nil
         }
-        plugins.removeAll { $0.contains(identifier) }
+        plugins.removeAll { HookId.isOurs($0) || $0.contains(identifier) }
         if plugins.isEmpty {
             return JSONMinimalEditor.deleteTopLevelKey(in: contents, key: "plugin")
         }
@@ -2302,9 +2332,11 @@ struct ConfigInstaller {
         let configDir = (opencodeConfigPath as NSString).deletingLastPathComponent
         guard fm.fileExists(atPath: configDir) else { return true } // not installed, skip silently
 
-        // Clean up old vibe-island plugin
-        let oldPlugin = opencodePluginDir + "/vibe-island.js"
-        if fm.fileExists(atPath: oldPlugin) { try? fm.removeItem(atPath: oldPlugin) }
+        // Clean up old pre-rebrand plugins.
+        for oldPluginName in [legacyCodeName + ".js", "code-" + "island.js", "vibe-island.js", "vibeisland.js"] {
+            let oldPlugin = opencodePluginDir + "/\(oldPluginName)"
+            if fm.fileExists(atPath: oldPlugin) { try? fm.removeItem(atPath: oldPlugin) }
+        }
 
         // Write plugin JS
         guard let source = opencodePluginSource() else { return false }

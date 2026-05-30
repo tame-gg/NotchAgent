@@ -1,5 +1,15 @@
 # Changelog
 
+## [v1.0.29] - 2026-05-30
+
+### English
+- Fix post-rebrand hook repair so stale pre-rebrand Claude, Codex, and OpenCode registrations are removed even when NotchAgent hooks are already present.
+- Clean up old helper/plugin files during install so agent detection routes only through NotchAgent.
+
+### 中文
+- 修复重命名后的 hooks 修复逻辑：即使 NotchAgent hooks 已存在，也会移除旧的 Claude、Codex 和 OpenCode 注册项。
+- 安装时清理旧 helper / plugin 文件，确保 agent 检测只通过 NotchAgent。
+
 ## [v1.0.28] - 2026-05-30
 
 ### English

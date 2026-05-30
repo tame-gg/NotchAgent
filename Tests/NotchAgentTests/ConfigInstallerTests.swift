@@ -4,6 +4,8 @@ import NotchAgentCore
 import Yams
 
 final class ConfigInstallerTests: XCTestCase {
+    private let legacyCodeName = "code" + "island"
+
     private func yamlRootDict(_ yaml: String, file: StaticString = #filePath, line: UInt = #line) throws -> [String: Any] {
         let any = try XCTUnwrap(try Yams.load(yaml: yaml), file: file, line: line)
         if let d = any as? [String: Any] { return d }
@@ -26,13 +28,31 @@ final class ConfigInstallerTests: XCTestCase {
         let hooks = try XCTUnwrap(hooksAny as? [Any], file: file, line: line)
         return hooks.compactMap { $0 as? [String: Any] }
     }
-    func testRemoveManagedHookEntriesAlsoPrunesLegacyVibeIslandHooks() throws {
+    func testRemoveManagedHookEntriesAlsoPrunesLegacyBrandHooks() throws {
         let hooks: [String: Any] = [
             "SessionEnd": [
                 [
                     "hooks": [
                         [
                             "command": "/Users/test/.vibe-island/bin/vibe-island-bridge --source claude",
+                            "type": "command",
+                        ],
+                    ],
+                ],
+                [
+                    "hooks": [
+                        [
+                            "command": "~/.\(legacyCodeName)/\(legacyCodeName)-hook.sh",
+                            "timeout": 5,
+                            "type": "command",
+                        ],
+                    ],
+                ],
+                [
+                    "hooks": [
+                        [
+                            "command": "/Users/test/.\(legacyCodeName)/\(legacyCodeName)-bridge --source codex",
+                            "timeout": 5,
                             "type": "command",
                         ],
                     ],
@@ -504,8 +524,9 @@ hooks:
     func testMergeOpencodePluginRefDeduplicatesOurOwnRefs() throws {
         let original = """
         {
-          "plugin": [
+            "plugin": [
             "file:///old/notchagent.js",
+            "file:///old/\(legacyCodeName).js",
             "file:///some/vibe-island.js",
             "file:///user/other.js"
           ]
@@ -521,6 +542,7 @@ hooks:
         let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(merged.utf8)) as? [String: Any])
         let plugins = try XCTUnwrap(json["plugin"] as? [String])
         XCTAssertEqual(plugins.filter { $0.contains("notchagent") }.count, 1)
+        XCTAssertFalse(plugins.contains { $0.contains(legacyCodeName) })
         XCTAssertFalse(plugins.contains { $0.contains("vibe-island") })
         XCTAssertTrue(plugins.contains("file:///user/other.js"))
         XCTAssertTrue(plugins.contains("file:///new/notchagent.js"))
@@ -555,7 +577,7 @@ hooks:
         let original = """
         {
           "model": "sonnet",
-          "plugin": ["file:///tmp/notchagent.js", "file:///user/other.js"]
+          "plugin": ["file:///tmp/notchagent.js", "file:///tmp/\(legacyCodeName).js", "file:///user/other.js"]
         }
         """
         let cleaned = try XCTUnwrap(
