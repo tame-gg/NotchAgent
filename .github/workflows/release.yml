@@ -54,7 +54,7 @@ jobs:
         run: |
           XCODE_APP="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' -type d | sort | tail -n 1)"
           if [ -z "$XCODE_APP" ]; then
-            echo "Xcode 26 is required to compile AppIcon.icon" >&2
+            echo "Xcode 26 is required for the macOS release build" >&2
             exit 1
           fi
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"

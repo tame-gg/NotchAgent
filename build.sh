@@ -11,9 +11,7 @@ APP_NAME="NotchAgent"
 TARGET_NAME="NotchAgent"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
-ICON_CATALOG="Assets.xcassets"
-ICON_SOURCE="AppIcon.icon"
-ICON_INFO_PLIST=".build/AppIcon.partial.plist"
+RESOURCE_DIR="Sources/NotchAgent/Resources"
 
 BUILD_MAC=true
 NOTARIZE=false
@@ -83,21 +81,9 @@ build_mac() {
     install_name_tool -add_rpath "@executable_path/../../Frameworks" \
         "$APP_BUNDLE/Contents/Helpers/notchagent-bridge" 2>/dev/null || true
 
-    echo "Compiling app icon assets..."
-    xcrun actool \
-        --output-format human-readable-text \
-        --warnings \
-        --errors \
-        --notices \
-        --platform macosx \
-        --target-device mac \
-        --minimum-deployment-target 14.0 \
-        --app-icon AppIcon \
-        --output-partial-info-plist "$ICON_INFO_PLIST" \
-        --compile "$APP_BUNDLE/Contents/Resources" \
-        "$ICON_CATALOG" \
-        "$ICON_SOURCE"
-    cp "Sources/NotchAgent/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+    echo "Copying prebuilt app icon assets..."
+    cp "$RESOURCE_DIR/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+    cp "$RESOURCE_DIR/Assets.car" "$APP_BUNDLE/Contents/Resources/Assets.car"
 
     # Copy SPM resource bundles into Contents/Resources/ (required for code signing)
     for bundle in .build/*/release/*.bundle; do

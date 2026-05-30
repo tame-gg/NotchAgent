@@ -85,18 +85,11 @@ CURRENT_VER=$(defaults read "$REPO_ROOT/Info.plist" CFBundleShortVersionString)
 sed -e "s/<string>${CURRENT_VER}<\/string>/<string>${VERSION}<\/string>/g" \
     "$REPO_ROOT/Info.plist" > "$CONTENTS_DIR/Info.plist"
 
-# Compile app icon and asset catalog
-xcrun actool \
-    --output-format human-readable-text \
-    --notices --warnings --errors \
-    --platform macosx \
-    --target-device mac \
-    --minimum-deployment-target 14.0 \
-    --app-icon AppIcon \
-    --output-partial-info-plist /dev/null \
-    --compile "$CONTENTS_DIR/Resources" \
-    "$REPO_ROOT/Assets.xcassets" \
-    "$REPO_ROOT/AppIcon.icon"
+# Copy prebuilt app icon assets. GitHub-hosted macOS runners have crashed in
+# AssetCatalogAgent while compiling AppIcon.icon, and these checked-in assets
+# already satisfy the bundle's CFBundleIconFile / CFBundleIconName contract.
+cp "$REPO_ROOT/Sources/NotchAgent/Resources/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
+cp "$REPO_ROOT/Sources/NotchAgent/Resources/Assets.car" "$CONTENTS_DIR/Resources/Assets.car"
 
 # Copy SPM resource bundles into Contents/Resources/ — putting them at the .app
 # root breaks Developer ID signing with "unsealed contents present in the bundle
