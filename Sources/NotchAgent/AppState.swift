@@ -194,9 +194,6 @@ final class AppState {
     /// Codex Desktop isn't running. See AppState+CodexAppServer.
     @ObservationIgnored
     var codexAppServerClient: CodexAppServerClient?
-    /// Pending `thread/list` request used to backfill already-open Codex Desktop sessions.
-    @ObservationIgnored
-    var codexAppThreadListRequestId: CodexRequestID?
     /// NSWorkspace launch/terminate observers tracking Codex Desktop.
     @ObservationIgnored
     var codexAppServerObservers: [NSObjectProtocol]?
@@ -2095,6 +2092,13 @@ final class AppState {
         let cutoff = Date().addingTimeInterval(-30 * 60) // 30 minutes
         for p in persisted where p.lastActivity > cutoff {
             guard sessions[p.sessionId] == nil else { continue }
+            // Codex app-server sessions are only valid while the notification stream
+            // owns them. Old builds briefly persisted thread/list backfills here,
+            // which can restore many historical Codex conversations and attach
+            // transcript tailers to all of them on launch.
+            if p.sessionId.hasPrefix(Self.codexAppSessionPrefix) {
+                continue
+            }
             guard let source = SessionSnapshot.normalizedSupportedSource(p.source) else { continue }
             var snapshot = SessionSnapshot(startTime: p.startTime)
             snapshot.cwd = p.cwd
