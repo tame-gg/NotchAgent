@@ -962,6 +962,29 @@ private struct HooksPage: View {
         return items
     }
 
+    private func runAutoRepair() {
+        for cli in ConfigInstaller.allCLIs where ConfigInstaller.cliExists(source: cli.source) {
+            UserDefaults.standard.set(true, forKey: "cli_enabled_\(cli.source)")
+        }
+        if ConfigInstaller.cliExists(source: "opencode") {
+            UserDefaults.standard.set(true, forKey: "cli_enabled_opencode")
+        }
+
+        let repaired = ConfigInstaller.verifyAndRepair()
+        let ok = ConfigInstaller.install()
+        refreshCLIStatuses()
+        refreshKey += 1
+
+        if ok {
+            let repairedList = repaired.isEmpty ? "No broken hooks found" : repaired.joined(separator: ", ")
+            statusMessage = "Auto Repair complete: \(repairedList)"
+            statusIsError = false
+        } else {
+            statusMessage = l10n["install_failed"]
+            statusIsError = true
+        }
+    }
+
     var body: some View {
         Form {
             Section(l10n["cli_status"]) {
@@ -1059,21 +1082,7 @@ private struct HooksPage: View {
 
             Section("Diagnostics & Repair") {
                 HookDiagnosticsPanel(items: hookDiagnostics) {
-                    for cli in ConfigInstaller.allCLIs where ConfigInstaller.cliExists(source: cli.source) {
-                        UserDefaults.standard.set(true, forKey: "cli_enabled_\(cli.source)")
-                    }
-                    if ConfigInstaller.cliExists(source: "opencode") {
-                        UserDefaults.standard.set(true, forKey: "cli_enabled_opencode")
-                    }
-                    if ConfigInstaller.install() {
-                        refreshCLIStatuses()
-                        refreshKey += 1
-                        statusMessage = "Detected hooks repaired"
-                        statusIsError = false
-                    } else {
-                        statusMessage = l10n["install_failed"]
-                        statusIsError = true
-                    }
+                    runAutoRepair()
                 }
             }
 
@@ -1154,32 +1163,34 @@ private struct HookDiagnosticsPanel: View {
     let repair: () -> Void
 
     var body: some View {
-        if items.isEmpty {
-            Label("All detected hooks look healthy", systemImage: "checkmark.seal.fill")
-                .foregroundStyle(.green)
-        } else {
-            ForEach(items) { item in
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: item.severity == .warning ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                        .foregroundStyle(item.severity == .warning ? .orange : .blue)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(item.title)
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(item.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(item.suggestion)
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+        VStack(alignment: .leading, spacing: 10) {
+            if items.isEmpty {
+                Label("All detected hooks look healthy", systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+            } else {
+                ForEach(items) { item in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: item.severity == .warning ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                            .foregroundStyle(item.severity == .warning ? .orange : .blue)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.title)
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(item.detail)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(item.suggestion)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
             }
 
             Button {
                 repair()
             } label: {
-                Label("Repair Detected Hooks", systemImage: "wrench.and.screwdriver")
+                Label("Run Auto Repair", systemImage: "wrench.and.screwdriver")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

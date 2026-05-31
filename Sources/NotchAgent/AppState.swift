@@ -194,6 +194,9 @@ final class AppState {
     /// Codex Desktop isn't running. See AppState+CodexAppServer.
     @ObservationIgnored
     var codexAppServerClient: CodexAppServerClient?
+    /// Pending `thread/list` request used to backfill already-open Codex Desktop sessions.
+    @ObservationIgnored
+    var codexAppThreadListRequestId: CodexRequestID?
     /// NSWorkspace launch/terminate observers tracking Codex Desktop.
     @ObservationIgnored
     var codexAppServerObservers: [NSObjectProtocol]?

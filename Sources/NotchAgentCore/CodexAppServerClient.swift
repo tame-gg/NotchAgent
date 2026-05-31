@@ -83,6 +83,10 @@ public enum AnyCodableLike: Equatable {
         if case .string(let s) = self { return s }
         return nil
     }
+    public var asInt: Int64? {
+        if case .int(let n) = self { return n }
+        return nil
+    }
     public var asBool: Bool? {
         if case .bool(let b) = self { return b }
         return nil

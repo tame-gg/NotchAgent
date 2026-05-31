@@ -42,6 +42,11 @@ final class UpdateChecker: NSObject, ObservableObject {
 
     /// Wire up Sparkle. Call once from `AppDelegate.applicationDidFinishLaunching`.
     func start() {
+        guard Bundle.main.bundleURL.pathExtension == "app" else {
+            Self.log.info("Non-app-bundle launch detected — skipping Sparkle")
+            return
+        }
+
         #if DEBUG
         // Sparkle crashes if we run without a proper Bundle ID (e.g. raw executable via Xcode/SPM)
         if Bundle.main.bundleIdentifier == nil {

@@ -83,8 +83,15 @@ extension AppState {
             try client.start()
             let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
             try client.initializeHandshake(clientName: "NotchAgent", clientVersion: version)
+            codexAppThreadListRequestId = try client.sendRequest(method: "thread/list", params: [
+                "limit": 20,
+                "sortKey": "updated_at",
+                "sortDirection": "desc",
+                "sourceKinds": [],
+            ])
         } catch {
             client.stop()
+            codexAppThreadListRequestId = nil
             return
         }
         codexAppServerClient = client
@@ -93,6 +100,7 @@ extension AppState {
     private func stopCodexAppServerClient() {
         codexAppServerClient?.stop()
         codexAppServerClient = nil
+        codexAppThreadListRequestId = nil
         removeCodexAppServerSessions()
     }
 
@@ -107,6 +115,13 @@ extension AppState {
     // MARK: - Notification dispatch
 
     private func handleCodexAppServerMessage(_ message: CodexJSONRPCMessage) {
+        if case .response(let id) = message.kind,
+           id == codexAppThreadListRequestId {
+            codexAppThreadListRequestId = nil
+            applyCodexThreadListResponse(message)
+            return
+        }
+
         guard case .notification(let method) = message.kind else { return }
         let params = message.raw["params"]?.asObject ?? [:]
 
@@ -124,6 +139,25 @@ extension AppState {
 
     private func applyCodexThreadStartedNotification(params: [String: AnyCodableLike]) {
         guard let thread = params["thread"]?.asObject else { return }
+        applyCodexThread(thread)
+    }
+
+    private func applyCodexThreadListResponse(_ message: CodexJSONRPCMessage) {
+        guard let result = message.raw["result"]?.asObject else { return }
+        guard case .array(let threads) = result["data"] ?? .null else { return }
+
+        var didApply = false
+        for item in threads {
+            guard let thread = item.asObject else { continue }
+            applyCodexThread(thread)
+            didApply = true
+        }
+        if didApply {
+            refreshDerivedState()
+        }
+    }
+
+    private func applyCodexThread(_ thread: [String: AnyCodableLike]) {
         guard let threadId = thread["id"]?.asString else { return }
         let sessionId = AppState.codexAppSessionPrefix + threadId
 
@@ -145,7 +179,11 @@ extension AppState {
         }
 
         applyCodexThreadStatus(&snapshot, status: thread["status"]?.asObject)
-        snapshot.lastActivity = Date()
+        if let updatedAt = thread["updatedAt"]?.asInt {
+            snapshot.lastActivity = Date(timeIntervalSince1970: TimeInterval(updatedAt))
+        } else {
+            snapshot.lastActivity = Date()
+        }
         sessions[sessionId] = snapshot
         attachTranscriptTailerIfNeeded(sessionId: sessionId)
         refreshDerivedState()
